@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA ASC 👑</title>
+    
+    <meta name="google-site-verification" content="94FXERfK8uWd_JSpR6qn8EnLhte3cOxffSKQjKbW9dU" />
+
+    <link rel="icon" type="image/png" href="icone-2fa.png">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.4/otpauth.umd.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background-color: #000000; 
+            display: flex; 
+            justify-content: center; 
+            padding-top: 40px; 
+            margin: 0; 
+            color: #eee;
+        }
+
+        .container { 
+            background: #1a1a1a; 
+            border-radius: 15px; 
+            box-shadow: 0 0 30px rgba(0,255,100,0.1); 
+            width: 95%; 
+            max-width: 600px; 
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        
+        .banner {
+            width: 100%;
+            height: 180px; 
+            background-image: url('seu-banner.gif'); 
+            background-size: cover; 
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #222;
+        }
+
+        .content { padding: 30px; }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+
+        h1 { font-size: 24px; margin: 0; color: #fff; }
+        p.desc { color: #888; font-size: 13px; margin-bottom: 20px; }
+        
+        input { 
+            width: 100%; padding: 15px; background: #222; border: 2px solid #00c853; border-radius: 8px; 
+            font-size: 16px; margin-bottom: 20px; box-sizing: border-box; outline: none; color: #fff;
+        }
+
+        .btn-main { 
+            background: #00c853; color: white; border: none; padding: 14px 28px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%;
+            transition: 0.3s;
+        }
+
+        .btn-main:hover { background: #00a844; }
+
+        .result-section { margin-top: 25px; border-top: 1px solid #333; padding-top: 20px; }
+        .info-row { margin-bottom: 12px; font-size: 14px; color: #bbb; }
+        
+        .code-wrapper { position: relative; display: inline-block; }
+
+        #code-display { 
+            font-weight: bold; color: #00ff88; font-size: 26px; cursor: pointer; 
+            background: #0d2b1a; padding: 5px 15px; border-radius: 6px; display: inline-block;
+            transition: transform 0.1s;
+            user-select: none;
+        }
+
+        #code-display:active { transform: scale(0.95); }
+
+        .copy-toast {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00c853;
+            color: white;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: none;
+            animation: fadeInOut 1s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; top: -20px; }
+            20% { opacity: 1; top: -30px; }
+            80% { opacity: 1; top: -30px; }
+            100% { opacity: 0; top: -35px; }
+        }
+
+        .footer-action {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="banner"></div> 
+    <div class="content">
+        <div class="header-title">
+            <img src="icone-2fa.png" class="brand-icon" alt="Icon">
+            <h1>2FA ASC 👑</h1>
+        </div>
+        
+        <p class="desc">Insira sua chave secreta abaixo. <b>Dois cliques no código para copiar.</b></p>
+
+        <input type="text" id="secretKey" placeholder="DIGITE A CHAVE AQUI..." autocomplete="off">
+        <button class="btn-main" onclick="process2FA()">GERAR CÓDIGO</button>
+
+        <div class="result-section">
+            <div class="info-row">Key: <small id="display-key" style="color: #666;">---</small></div>
+            <div class="info-row">
+                Code: 
+                <div class="code-wrapper">
+                    <span id="code-display" ondblclick="copyCode()">------</span>
+                    <div id="copy-status" class="copy-toast">Copiado!</div>
+                </div>
+            </div>
+            
+            <div class="footer-action">
+                <div style="font-size: 13px; color: #666;">Expira em: <b id="timer" style="color: #00c853;">--</b>s</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let countdown;
+
+    function copyCode() {
+        const codeText = document.getElementById('code-display').innerText;
+        if (codeText === "------") return;
+
+        navigator.clipboard.writeText(codeText).then(() => {
+            const status = document.getElementById('copy-status');
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 1000);
+        });
+    }
+
+    function process2FA() {
+        const input = document.getElementById('secretKey').value.trim().replace(/\s/g, '').toUpperCase();
+        const codeDisplay = document.getElementById('code-display');
+        const keyDisplay = document.getElementById('display-key');
+
+        if(countdown) clearInterval(countdown);
+        
+        try {
+            let totp = new OTPAuth.TOTP({ secret: input, digits: 6, period: 30 });
+            keyDisplay.innerText = input;
+            
+            const update = () => {
+                const timeLeft = 30 - (Math.floor(Date.now() / 1000) % 30);
+                document.getElementById('timer').innerText = timeLeft;
+                if (timeLeft === 30 || codeDisplay.innerText === "------") {
+                    codeDisplay.innerText = totp.generate();
+                }
+            };
+
+            update();
+            countdown = setInterval(update, 1000);
+        } catch (e) { 
+            alert("Chave Inválida!"); 
+        }
+    }
+</script>
+</body>
+</html>
